@@ -68,6 +68,16 @@ jobs:
     # Uses 'latest' tag - in production, consider using commit SHA or version tags
     - name: Build Docker Image
       run: |
+        # Debug: Print environment variables to ensure they're set
+        echo "PROJECT_ID: ${PROJECT_ID}"
+        echo "REGION: ${REGION}" 
+        echo "REPOSITORY: ${REPOSITORY}"
+        echo "IMAGE: ${IMAGE}"
+        
+        # Set Docker to use legacy builder (not buildx)
+        export DOCKER_BUILDKIT=0
+        
+        # Build the image with legacy builder
         docker build -t ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE}:latest .
         echo "✅ Docker image build completed successfully"
 
