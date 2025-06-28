@@ -1,45 +1,79 @@
+# Build and push Docker image to Google Cloud Artifact Registry
+# This workflow triggers on pushes to main branch and automates the entire deployment pipeline
 name: Build and Push to Artifact Registry
+
+# Trigger: Run this workflow when code is pushed to the main branch
 on:
   push:
     branches: ["main"]
+
+# Environment variables used throughout the workflow
+# These define our Google Cloud configuration and image details
 env:
-  PROJECT_ID: connekt-studio
-  REGION: us-central1
-  REPOSITORY: python-simple
-  IMAGE: python-simple
+  PROJECT_ID: ${{ secrets.PROJECT_ID }}         # Google Cloud project ID
+  REGION: ${{ secrets.REGION }}                 # GCP region for Artifact Registry
+  REPOSITORY: python-simple           # Artifact Registry repository name
+  IMAGE: python-simple                # Docker image name
+
 jobs:
   build-push:
+    # Use Ubuntu latest runner provided by GitHub Actions
     runs-on: ubuntu-latest
+    
     steps:
+    # Step 1: Get the source code from the repository
+    # This downloads the code from the current commit to the runner
     - name: Checkout
       uses: actions/checkout@v3
     - name: Log checkout success
       run: echo "✅ Checkout completed successfully"
+
+    # Step 2: Authenticate with Google Cloud using service account
+    # This step uses a service account key stored in GitHub secrets
+    # The key provides permissions to access GCP services like Artifact Registry
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v1
       with:
         credentials_json: ${{ secrets.SERVICE_ACCOUNT_KEY }}
     - name: Log authentication success
       run: echo "✅ Google Cloud authentication completed successfully"
+
+    # Step 3: Ensure Artifact Registry repository exists
+    # First tries to describe (check if exists), if not found, creates it
+    # This is idempotent - safe to run multiple times
     - name: Create Artifact Registry Repository
       run: |
+        # Try to describe the repository (check if it exists)
         gcloud artifacts repositories describe ${REPOSITORY} \
           --location=${REGION} \
           --format="value(name)" \
           --quiet || \
+        # If describe fails (repo doesn't exist), create it
         gcloud artifacts repositories create ${REPOSITORY} \
           --repository-format=docker \
           --location=${REGION} \
           --description="Auto-created repository for ${IMAGE}"
         echo "✅ Artifact Registry repository setup completed successfully"
+
+    # Step 4: Configure Docker to authenticate with Artifact Registry
+    # This allows Docker commands to push/pull from the private registry
+    # Sets up authentication helper for the specific registry URL
     - name: Configure Docker for Artifact Registry
       run: |
         gcloud auth configure-docker ${REGION}-docker.pkg.dev
         echo "✅ Docker configuration for Artifact Registry completed successfully"
+
+    # Step 5: Build the Docker image from the Dockerfile in the repo
+    # Tags the image with the full Artifact Registry path for pushing
+    # Uses 'latest' tag - in production, consider using commit SHA or version tags
     - name: Build Docker Image
       run: |
         docker build -t ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE}:latest .
         echo "✅ Docker image build completed successfully"
+
+    # Step 6: Push the built image to Artifact Registry
+    # This uploads the image to GCP where it can be deployed to services like Cloud Run
+    # The image will be available at: us-central1-docker.pkg.dev/connekt-studio/python-simple/python-simple:latest
     - name: Push Docker Image
       run: |
         docker push ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE}:latest
