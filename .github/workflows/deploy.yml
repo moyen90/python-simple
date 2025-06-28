@@ -10,8 +10,8 @@ on:
 # Environment variables used throughout the workflow
 # These define our Google Cloud configuration and image details
 env:
-  PROJECT_ID: ${{ secrets.PROJECT_ID }}         # Google Cloud project ID
-  REGION: ${{ secrets.REGION }}                 # GCP region for Artifact Registry
+  PROJECT_ID: connekt-studio         # Google Cloud project ID
+  REGION: us-central1                 # GCP region for Artifact Registry
   REPOSITORY: python-simple           # Artifact Registry repository name
   IMAGE: python-simple                # Docker image name
 
@@ -74,10 +74,7 @@ jobs:
         echo "REPOSITORY: ${REPOSITORY}"
         echo "IMAGE: ${IMAGE}"
         
-        # Set Docker to use legacy builder (not buildx)
-        export DOCKER_BUILDKIT=0
-        
-        # Build the image with legacy builder
+        # Build the image
         docker build -t ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE}:latest .
         echo "✅ Docker image build completed successfully"
 
