@@ -1,0 +1,25 @@
+name: Build and Push to Artifact Registry
+on:
+  push:
+    branches: ["main"]
+env:
+  PROJECT_ID: connekt-studio
+  REGION: us-central1
+  REPOSITORY: python-simple
+  IMAGE: python-simple
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: ${{ secrets.SERVICE_ACCOUNT_KEY }}
+    - name: Configure Docker for Artifact Registry
+      run: gcloud auth configure-docker ${REGION}-docker.pkg.dev
+    - name: Build Docker Image
+      run: docker build -t ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE}:latest .
+    - name: Push Docker Image
+      run: docker push ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE}:latest
